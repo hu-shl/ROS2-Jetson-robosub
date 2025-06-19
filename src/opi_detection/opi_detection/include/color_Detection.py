@@ -2,9 +2,12 @@ import cv2
 import numpy as np
 from collections import deque, Counter
 import time
+import rclpy
+from rclpy.node import Node
+from px4_msgs.msg import LampControl  # Replace with your actual message type
 
 class LampAssistedColorDetector:
-    def __init__(self):
+    def __init__(self, ros_node=None):
         # Available buoy colors
         self.buoy_colors = ['red', 'white', 'black', 'orange', 'yellow']
         # Lamp colors for detection assistance
@@ -34,6 +37,11 @@ class LampAssistedColorDetector:
             'orange': {'blue': 1.0, 'white': 0.9, 'green': 0.4, 'red': 0.3, 'off': 0.6},
             'yellow': {'blue': 1.0, 'white': 0.8, 'red': 0.3, 'green': 0.2, 'off': 0.5}
         }
+        self.ros_node = ros_node
+        if self.ros_node is not None:
+            self.lamp_pub = self.ros_node.create_publisher(LampControl, '/lamp/control', 10)
+        else:
+            self.lamp_pub = None
 
     def initialize_detection_system(self):
         """Initialize the detection system without starting"""
@@ -61,9 +69,11 @@ class LampAssistedColorDetector:
         self.set_physical_lamp_color('white')  # Return to default
         return self.get_final_color_guess()
 
-    def analyze_color_with_current_lamp(self, frame, x, y, width, height):
-        """Analyze color under current lamp conditions"""
-        roi = frame[y:y+height, x:x+width]
+    def analyze_color_with_current_lamp(self, frame, x1, y1, x2, y2):
+        """Analyze color under current lamp conditions using two points"""
+        width = x2 - x1
+        height = y2 - y1
+        roi = frame[y1:y1+height, x1:x1+width]
         if roi.size == 0:
             return {}
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
@@ -84,19 +94,17 @@ class LampAssistedColorDetector:
         return color_scores
 
     def run_complete_detection_on_image(self, image_path, x1, y1, x2, y2):
-        """Run complete detection cycle on a single image"""
+        """Run complete detection cycle on a single image using two points"""
         frame = cv2.imread(image_path)
         if frame is None:
             print("Failed to load image.")
             return None
-        width = x2 - x1
-        height = y2 - y1
         print(f"Running complete detection on region ({x1},{y1}) to ({x2},{y2})")
         all_results = {}
         for lamp_color in self.lamp_colors:
             print(f"Testing with {lamp_color} lamp...")
             self.current_lamp_color = lamp_color
-            color_scores = self.analyze_color_with_current_lamp(frame, x1, y1, width, height)
+            color_scores = self.analyze_color_with_current_lamp(frame, x1, y1, x2, y2)
             all_results[lamp_color] = color_scores
             print(f"  Scores: {color_scores}")
         self.detection_results = all_results
@@ -110,8 +118,7 @@ class LampAssistedColorDetector:
         if self.lamp_sequence_index < len(self.lamp_colors) - 1:
             self.lamp_sequence_index += 1
             self.current_lamp_color = self.lamp_colors[self.lamp_sequence_index]
-            self.set_physical_lamp_color(self.current_lamp_color)
-            print(f"Lamp changed to: {self.current_lamp_color}")
+            self.set_physical_lamp_color(self.current_lamp_color)  # <-- This changes the lamp color
 
     def get_current_best_guess(self):
         """Get best color guess based on all lamp tests so far"""
@@ -176,16 +183,30 @@ class LampAssistedColorDetector:
         return best_color
 
     def set_physical_lamp_color(self, color):
-        """Set the actual lamp color - implement based on your hardware"""
+        """Set the actual lamp color via ROS2 message."""
         print(f"Setting lamp to {color}")
-        # IMPLEMENT YOUR LAMP CONTROL HERE
+        marker_opi_map = {
+            "orange": "0",
+            "red": "1",
+            "green": "2",
+            "blue": "3",
+            "white": "4"
+        }
+        
+        if self.lamp_pub is not None:
+            msg = LampControl()
+            msg.color = marker_opi_map.get(color)
+            msg.intensity = 1.0
+            self.lamp_pub.publish(msg)
 
-    def detect_color_without_lamp(self, frame, x, y, width, height):
+    def detect_color_without_lamp(self, frame, x1, y1, x2, y2):
         """
         Detect the buoy color in the given ROI without changing lamp color.
         Returns the best color guess and a confidence score.
         """
-        roi = frame[y:y+height, x:x+width]
+        width = x2 - x1
+        height = y2 - y1
+        roi = frame[y1:y1+height, x1:x1+width]
         if roi.size == 0:
             return 'unknown', 0.0
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
@@ -207,59 +228,3 @@ class LampAssistedColorDetector:
             return 'unknown', confidence
         return best_color, confidence
 
-# Usage Example
-
-def example_single_image_analysis():
-    """Analyze a single image with specified coordinates"""
-    detector = LampAssistedColorDetector()
-    image_path = "images/rami_marine_dataset/class_1/red/img_0012.png"
-    x1, y1 = 500, 197  # Top-left corner
-    x2, y2 = 816, 502  # Bottom-right corner
-    result = detector.run_complete_detection_on_image(image_path, x1, y1, x2, y2)
-    if result:
-        final_color, confidence = result
-        print(f"Detected color: {final_color} with {confidence:.1%} confidence")
-
-def example_your_specific_use_case():
-    """How to integrate with your existing code"""
-    detector = LampAssistedColorDetector()
-    buoy_found = True
-    buoy_coordinates = (500, 197, 816, 502)  # x1, y1, x2, y2
-    if buoy_found:
-        x1, y1, x2, y2 = buoy_coordinates
-        width = x2 - x1
-        height = y2 - y1
-        print("Buoy detected! Starting color identification...")
-        detector.start_detection_cycle()
-        frame = cv2.imread("images/rami_marine_dataset/class_1/red/img_0012.png")
-        if frame is not None:
-            result = detector.run_complete_detection_on_image("images/rami_marine_dataset/class_1/red/img_0012.png", x1, y1, x2, y2)
-            if result:
-                final_color, confidence = result
-                print(f"Detection complete! Color: {final_color}")
-                print(f"Confidence: {confidence:.1%}")
-
-def example_no_lamp_analysis():
-    """Analyze a single image without lamp assistance"""
-    detector = LampAssistedColorDetector()
-    image_path = "images/rami_marine_dataset/class_1/red/img_0012.png"
-    x1, y1 = 500, 197  # Top-left corner
-    x2, y2 = 816, 502  # Bottom-right corner
-    frame = cv2.imread(image_path)
-    if frame is not None:
-        width = x2 - x1
-        height = y2 - y1
-        color, confidence = detector.detect_color_without_lamp(frame, x1, y1, width, height)
-        print(f"[NO LAMP] Detected color: {color} with {confidence:.1%} confidence")
-    else:
-        print("Failed to load image.")
-
-if __name__ == "__main__":
-    print("Running Example: Single image analysis")
-    example_single_image_analysis()
-    print("\n" + "="*50)
-    print("Running Example: Your specific use case simulation")
-    example_your_specific_use_case()
-    print("\n" + "="*50)
-    print("Running Example: No lamp analysis")
-    example_no_lamp_analysis()

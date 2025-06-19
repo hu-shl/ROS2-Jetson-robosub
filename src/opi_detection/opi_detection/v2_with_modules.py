@@ -46,50 +46,85 @@ class OpiDetectionNode(Node):
         class_names = ["buoy", "1", "2", "3", "4"]
         img_dims = (AR0234_CONFIG['width'], AR0234_CONFIG['height'])
         color_detector = LampAssistedColorDetector()
-        pipe_direction_detector = PipeDirectionDetector()  
+        pipe_direction_detector = PipeDirectionDetector()
+  
 
-        for detection in detections:
-            confidence = detection.get('confidence', 0)
+        for detection in detections:        
+            confidence = detection['confidence']  # Detection confidence score (float, 0-1)
             if confidence < CONFIG['confidence_threshold']:
-                continue  # Skip low-confidence detections
-            class_id = detection.get('class_id', 0)
-            class_name = class_names[class_id] if class_id < len(class_names) else str(class_id)
-            x1, y1, x2, y2 = detection.get('bbox', (0, 0, 0, 0))
-            distance = fast_distance_gpu(x1, y1, x2, y2)
-            angles = calc_angle((x1, y1, x2, y2), img_dims)
-            angle_x = angles.get('angle_x', 0)
-            angle_y = angles.get('angle_y', 0)
-            direction_x = angles.get('direction_x', '')
+                continue  # Skip low-confidence detections            
+            
+            msg = OpiDetection()
+            class_id = detection.get('class_id', 0)  # Index of detected class (int)
+            class_name = class_names[class_id] if class_id < len(class_names) else str(class_id)  # Class label (str)
+            x1, y1, x2, y2 = detection.get('bbox', (0, 0, 0, 0))  # Bounding box coordinates (ints)
+            distance = fast_distance_gpu(x1, y1, x2, y2)  # Estimated distance to object (float, cm)
+            angles = calc_angle((x1, y1, x2, y2), img_dims)  # Dictionary with viewing angle info
+            angle_x = angles.get('angle_x', 0)  # Horizontal angle (float, degrees)
+            angle_y = angles.get('angle_y', 0)  # Vertical angle (float, degrees)
+            detection['color'] = None  # Placeholder for color info
+            detection['color_confidence'] = None  # Placeholder for color confidence
+            direction_x,direction_y = angles.get('direction_x', 'direction_y')
+
+            
+            msg = OpiDetection()
             detection['color'] = None
             detection['color_confidence'] = None
 
             if class_name == "buoy":
-                print(f"🌊 Buoy detected at {distance:.1f}cm, angle {angle_x:.1f}° {direction_x}")
                 if distance <= 100 and frame is not None:
-                    width = x2 - x1
-                    height = y2 - y1
-                    color, confidence = color_detector.detect_color_without_lamp(frame, int(x1), int(y1), int(width), int(height))
-                    print(f"Buoy color detected: {color} (confidence: {confidence:.1%})")
+                    color, color_confidence = color_detector.detect_color_without_lamp(frame, x1, y1, x2, y2)
                     detection['color'] = color
-                    detection['color_confidence'] = confidence
-                    print(f"bouy detected at {distance:.1f}cm, angle {angle_x:.1f}° {direction_x} with color {color} (confidence: {confidence:.1%})")
-                else:
-                    print(f"bouy detected at 100 cm < {distance:.1f}cm, angle {angle_x:.1f}° {direction_x}")
-                    msg = OpiDetection()
+                    detection['color_confidence'] = color_confidence                    
+                    
                     msg.opi = msg.OPI_BOUY
                     msg.distance = int(distance)
                     msg.angle_hor = angle_x
                     msg.angle_ver = angle_y
                     msg.confidence = int(confidence)
+                    msg.color = color
+                    msg.timestamp = self.get_clock().now().nanoseconds // 1000
+                    self.publisher_.publish(msg)
+                
+                else:
+                    msg.opi = msg.OPI_BOUY
+                    msg.distance = int(distance)
+                    msg.angle_hor = angle_x
+                    msg.angle_ver = angle_y
+                    msg.confidence = int(confidence)
+                    msg.color = color
                     msg.timestamp = self.get_clock().now().nanoseconds // 1000
                     self.publisher_.publish(msg)
             
             elif class_name in ["1", "2", "3", "4"]:
-                print(f"Marker {class_name} detected at {distance:.1f}cm, angle {angle_x:.1f}° {direction_x}")
-                if frame is not None:
+                # Assign unique OPI value for each marker
+                marker_opi_map = {
+                    "1": msg.OPI_ONE,
+                    "2": msg.OPI_TWO,
+                    "3": msg.OPI_THREE,
+                    "4": msg.OPI_FOUR
+                }
+                
+                msg.opi = marker_opi_map.get(class_name, msg.OPI_ONE)
+                msg.distance = int(distance)
+                msg.angle_hor = angle_x
+                msg.angle_ver = angle_y
+                msg.confidence = int(confidence)
+                msg.timestamp = self.get_clock().now().nanoseconds // 1000
+                if distance <= 100 and frame is not None:
                     direction, angle = pipe_direction_detector.detect_pipe_direction(frame)
-                    print(f"  Pipe direction: {direction}, Angle: {angle}")
-            
+                    msg.angle_pipe = angle
+                self.publisher_.publish(msg)
+
+            elif class_name in ["5", "6", "7", "8"]:
+                #TODO: Implement detection for classes 5-8
+                continue
+            elif class_name == "red":
+                #TODO: Implement detection for red color
+                continue
+            elif class_name == "green":
+                #TODO: Implement detection for green color
+                continue
             else:
                 print(f"Detected {class_name} at {distance:.1f}cm, angle {angle_x:.1f}° {direction_x}")
 
