@@ -1,0 +1,42 @@
+import torch
+
+AR0234_CONFIG = {
+    'exposure': 700,
+    'analogue_gain': 200,
+    'digital_gain': 1.0,
+    'total_gain': 200.0,
+    'use_v4l2_controls': True,
+    'red_gain': 1.0,
+    'green_gain': 0.9,
+    'blue_gain': 1.1,
+    'width': 1920,
+    'height': 1080,
+}
+
+CONFIG = {
+    'model_path': '/home/jetson/ros2_ws/src/opi_detection/opi_detection/best.engine',
+    'confidence_threshold': 0.40,
+    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+    'focal_length': 1900,
+    'known_width': 25,
+    'camera_device': "/dev/video0",
+    'camera_fov_h': 90,
+    'camera_fov_v': 75,
+    'inference_interval': 1,
+    'window_name': "AR0234 GPU Live Detection",
+    'bbox_thickness': 2,
+    'text_font_scale': 0.6,
+    'text_thickness': 2,
+    'exit_key': ord('q'),
+    'target_brightness_min': 60,
+    'target_brightness_max': 80,
+    'auto_exposure_enabled': True,
+    'auto_wb_enabled': True,
+    'noise_threshold': 12,
+    'input_size': 640,
+    'max_det': 10,
+    'agnostic_nms': True,
+    'half_precision': True,
+    'use_tensorrt': True,
+    'gpu_memory_fraction': 0.8,
+}
