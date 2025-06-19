@@ -49,9 +49,6 @@ class NucleusDriverNode(Node):
 
         self.timer = self.create_timer(0.005, self.timer_callback)  # 200 Hz
 
-        tmpmsg = OpiDetection()
-        print(tmpmsg.keys())
-
         self.quaternion_data = None
         self.velocity_data = None
         self.time_offset = 0
