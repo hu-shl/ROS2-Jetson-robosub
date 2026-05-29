@@ -54,25 +54,41 @@ class CanNode(Node):
         k = 0
         # test software:
         if tanks[0] > 0.5:
-            k = 2 # 
+            k = '02' # 
         elif tanks[0] < -0.5:                
-            k = 4 #
+            k = '04' #
         elif tanks[1] > 0.5:
-            k = 5 # 
+            k = '05' # 
         elif tanks[1] < -0.5:
-            k = 7 # 
+            k = '07' # 
         elif tanks[2] > 0.5:
-            k = 6 # 
+            k = '06' # 
         elif tanks[2] < -0.5:
-            k = 8 # 
+            k = '08' # 
         elif tanks[3] > 0.5:
-            k = 1 # 
+            k = '01' # 
         elif tanks[3] < -0.5:
-            k = 3 # 
+            k = '03' # 
+        elif tanks[4] > 0.5:   # rechts rol rechts
+            k = '09'
+        elif tanks[4] < -0.5:  # rechts rol links
+            k = '10' # 
+        elif tanks[5] > 0.5:   # links rol rechts
+            k = '11' # 
+        elif tanks[5] < -0.5:  # rechts rol links
+            k = '12' # 
+        elif tanks[6] > 0.5:   # 
+            k = '13'
+        elif tanks[6] < -0.5:  # 
+            k = '14' # 
+        elif tanks[7] > 0.5:   # 
+            k = '15' # 
+        elif tanks[7] < -0.5:  # 
+            k = '16' #      
 
         if k:
-            os.system(f"cansend can0 111#0{k}")
-            self.get_logger().info(f'ik stuur nu: 111#0{k} naar buoyancy')
+            os.system(f"cansend can0 111#{k}")
+            self.get_logger().info(f'ik stuur nu: 111#{k} naar buoyancy')
             time.sleep(0.05)
 
         # for j in range(4):
