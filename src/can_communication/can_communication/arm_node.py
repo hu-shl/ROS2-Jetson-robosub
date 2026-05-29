@@ -34,6 +34,17 @@ class ArmNode(Node):
         # FIX: Instead of a broken subscription, create a timer that runs every 0.1 seconds
         self.timer = self.create_timer(0.1, self.can_receiver)
 
+        self.tank_mapping = {
+            0: ('02', '04'),
+            1: ('05', '07'),
+            2: ('06', '08'),
+            3: ('01', '03'),
+            4: ('09', '10'),
+            5: ('11', '12'),
+            6: ('13', '14'),
+            7: ('15', '16')
+        }
+
     def arm_callback(self, msg):
         servo = msg.servo_command
         send_needed = False
@@ -51,45 +62,66 @@ class ArmNode(Node):
             # Update de status voor de volgende vergelijking
             self.prev_state[i] = current_val
 
-        k = 0
-        # test software:
-        if servo[0] > 0.5:     # rechts rechts
-            k = '02'  # 
-        elif servo[0] < -0.5:  # rechts links       
-            k = '04' #
-        elif servo[1] > 0.5:   # rechts omhoog
-            k = '05' # 
-        elif servo[1] < -0.5:  # rechts omlaag
-            k = '07' # 
-        elif servo[2] > 0.5:   # links rechts
-            k = '06' # 
-        elif servo[2] < -0.5:  # rechts rechts
-            k = '08' # 
-        elif servo[3] > 0.5:   # links omhoog
-            k = '01' # 
-        elif servo[3] < -0.5:  # links omlaag
-            k = '03' #
-        elif servo[4] > 0.5:   # rechts rol rechts
-            k = '09'
-        elif servo[4] < -0.5:  # rechts rol links
-            k = '10' # 
-        elif servo[5] > 0.5:   # links rol rechts
-            k = '11' # 
-        elif servo[5] < -0.5:  # rechts rol links
-            k = '12' # 
-        elif servo[6] > 0.5:   # 
-            k = '13'
-        elif servo[6] < -0.5:  # 
-            k = '14' # 
-        elif servo[7] > 0.5:   # 
-            k = '15' # 
-        elif servo[7] < -0.5:  # 
-            k = '16' #       
+        # k = 0
+        # # test software:
+        # if servo[0] > 0.5:     # rechts rechts
+        #     k = '02'  # 
+        # elif servo[0] < -0.5:  # rechts links       
+        #     k = '04' #
+        # elif servo[1] > 0.5:   # rechts omhoog
+        #     k = '05' # 
+        # elif servo[1] < -0.5:  # rechts omlaag
+        #     k = '07' # 
+        # elif servo[2] > 0.5:   # links rechts
+        #     k = '06' # 
+        # elif servo[2] < -0.5:  # rechts rechts
+        #     k = '08' # 
+        # elif servo[3] > 0.5:   # links omhoog
+        #     k = '01' # 
+        # elif servo[3] < -0.5:  # links omlaag
+        #     k = '03' #
+        # elif servo[4] > 0.5:   # rechts rol rechts
+        #     k = '09'
+        # elif servo[4] < -0.5:  # rechts rol links
+        #     k = '10' # 
+        # elif servo[5] > 0.5:   # links rol rechts
+        #     k = '11' # 
+        # elif servo[5] < -0.5:  # rechts rol links
+        #     k = '12' # 
+        # elif servo[6] > 0.5:   # 
+        #     k = '13'
+        # elif servo[6] < -0.5:  # 
+        #     k = '14' # 
+        # elif servo[7] > 0.5:   # 
+        #     k = '15' # 
+        # elif servo[7] < -0.5:  # 
+        #     k = '16' #       
 
 
-        if k:
-            os.system(f"cansend can0 222#{k}")
-            self.get_logger().info(f'ik stuur nu: 222#{k} naar arm')
+        # if k:
+        #     os.system(f"cansend can0 222#{k}")
+        #     self.get_logger().info(f'ik stuur nu: 222#{k} naar arm')
+        #     time.sleep(0.05)
+
+        commands_to_send = []
+
+        # Check all tanks to see which ones are active
+        for i, value in enumerate(tanks):
+            if i in self.tank_mapping:
+                pos_val, neg_val = self.tank_mapping[i]
+                
+                if value > 0.5:
+                    commands_to_send.append(pos_val)
+                elif value < -0.5:
+                    commands_to_send.append(neg_val)
+
+        # Send all active commands alternatingly
+        for k in commands_to_send:
+            os.system(f"cansend can0 111#{k}")
+            self.get_logger().info(f'ik stuur nu: 111#{k} naar buoyancy')
+            
+            # Small delay to prevent saturating the CAN bus 
+            # and to allow the receiver to process each message
             time.sleep(0.05)
 
         # for j in range(4):

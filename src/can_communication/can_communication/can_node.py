@@ -34,6 +34,17 @@ class CanNode(Node):
         # FIX: Instead of a broken subscription, create a timer that runs every 0.1 seconds
         self.timer = self.create_timer(0.1, self.can_receiver)
 
+        self.tank_mapping = {
+            0: ('02', '04'),
+            1: ('05', '07'),
+            2: ('06', '08'),
+            3: ('01', '03'),
+            4: ('09', '10'),
+            5: ('11', '12'),
+            6: ('13', '14'),
+            7: ('15', '16')
+        }
+
     def buoyancy_callback(self, msg):
         tanks = msg.tank_command
         send_needed = False
@@ -51,45 +62,67 @@ class CanNode(Node):
             # Update de status voor de volgende vergelijking
             self.prev_state[i] = current_val
 
-        k = 0
-        # test software:
-        if tanks[0] > 0.5:
-            k = '02' # 
-        elif tanks[0] < -0.5:                
-            k = '04' #
-        elif tanks[1] > 0.5:
-            k = '05' # 
-        elif tanks[1] < -0.5:
-            k = '07' # 
-        elif tanks[2] > 0.5:
-            k = '06' # 
-        elif tanks[2] < -0.5:
-            k = '08' # 
-        elif tanks[3] > 0.5:
-            k = '01' # 
-        elif tanks[3] < -0.5:
-            k = '03' # 
-        elif tanks[4] > 0.5:   # rechts rol rechts
-            k = '09'
-        elif tanks[4] < -0.5:  # rechts rol links
-            k = '10' # 
-        elif tanks[5] > 0.5:   # links rol rechts
-            k = '11' # 
-        elif tanks[5] < -0.5:  # rechts rol links
-            k = '12' # 
-        elif tanks[6] > 0.5:   # 
-            k = '13'
-        elif tanks[6] < -0.5:  # 
-            k = '14' # 
-        elif tanks[7] > 0.5:   # 
-            k = '15' # 
-        elif tanks[7] < -0.5:  # 
-            k = '16' #      
+        # k = 0
+        # # test software:
+        # if tanks[0] > 0.5:
+        #     k = '02' # 
+        # elif tanks[0] < -0.5:                
+        #     k = '04' #
+        # elif tanks[1] > 0.5:
+        #     k = '05' # 
+        # elif tanks[1] < -0.5:
+        #     k = '07' # 
+        # elif tanks[2] > 0.5:
+        #     k = '06' # 
+        # elif tanks[2] < -0.5:
+        #     k = '08' # 
+        # elif tanks[3] > 0.5:
+        #     k = '01' # 
+        # elif tanks[3] < -0.5:
+        #     k = '03' # 
+        # elif tanks[4] > 0.5:   # rechts rol rechts
+        #     k = '09'
+        # elif tanks[4] < -0.5:  # rechts rol links
+        #     k = '10' # 
+        # elif tanks[5] > 0.5:   # links rol rechts
+        #     k = '11' # 
+        # elif tanks[5] < -0.5:  # rechts rol links
+        #     k = '12' # 
+        # elif tanks[6] > 0.5:   # 
+        #     k = '13'
+        # elif tanks[6] < -0.5:  # 
+        #     k = '14' # 
+        # elif tanks[7] > 0.5:   # 
+        #     k = '15' # 
+        # elif tanks[7] < -0.5:  # 
+        #     k = '16' #      
 
-        if k:
+        # if k:
+        #     os.system(f"cansend can0 111#{k}")
+        #     self.get_logger().info(f'ik stuur nu: 111#{k} naar buoyancy')
+        #     time.sleep(0.05)
+
+        commands_to_send = []
+
+        # Check all tanks to see which ones are active
+        for i, value in enumerate(tanks):
+            if i in self.tank_mapping:
+                pos_val, neg_val = self.tank_mapping[i]
+                
+                if value > 0.5:
+                    commands_to_send.append(pos_val)
+                elif value < -0.5:
+                    commands_to_send.append(neg_val)
+
+        # Send all active commands alternatingly
+        for k in commands_to_send:
             os.system(f"cansend can0 111#{k}")
             self.get_logger().info(f'ik stuur nu: 111#{k} naar buoyancy')
+            
+            # Small delay to prevent saturating the CAN bus 
+            # and to allow the receiver to process each message
             time.sleep(0.05)
+
 
         # for j in range(4):
         #     if tanks[j] > 0.5:
