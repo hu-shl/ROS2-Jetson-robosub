@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'can_node = can_communication.can_node:main',
+            'buoyancy_node = can_communication.buoyancy_node:main',
             'arm_node = can_communication.arm_node:main',
             'receiver_node = can_communication.receiver_node:main',
         ],

@@ -10,7 +10,7 @@ RX  = "receive_log.txt"
 class ArmNode(Node):
     def __init__(self):
         super().__init__('arm_node')
-        self.get_logger().info('arm Node is opgestart!')
+        self.get_logger().info('Arm Node is opgestart!')
 
         # Onthoud de vorige status van alle 4 de tanks
         self.prev_state = [0.0, 0.0, 0.0, 0.0]

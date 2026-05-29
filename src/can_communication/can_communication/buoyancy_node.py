@@ -7,10 +7,10 @@ import time
 
 RX  = "receive_log.txt"
 
-class CanNode(Node):
+class BuoyancyNode(Node):
     def __init__(self):
-        super().__init__('can_node')
-        self.get_logger().info('CAN Node is opgestart!')
+        super().__init__('buoyancy_node')
+        self.get_logger().info('Buoyancy Node is opgestart!')
 
         # Onthoud de vorige status van alle 4 de tanks
         self.prev_state = [0.0, 0.0, 0.0, 0.0]
@@ -149,7 +149,7 @@ class CanNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = CanNode()
+    node = BuoyancyNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
