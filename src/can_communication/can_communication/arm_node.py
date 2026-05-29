@@ -34,7 +34,7 @@ class ArmNode(Node):
         # FIX: Instead of a broken subscription, create a timer that runs every 0.1 seconds
         self.timer = self.create_timer(0.1, self.can_receiver)
 
-        self.tank_mapping = {
+        self.servo_mapping = {
             0: ('02', '04'),
             1: ('05', '07'),
             2: ('06', '08'),
@@ -106,9 +106,9 @@ class ArmNode(Node):
         commands_to_send = []
 
         # Check all tanks to see which ones are active
-        for i, value in enumerate(tanks):
-            if i in self.tank_mapping:
-                pos_val, neg_val = self.tank_mapping[i]
+        for i, value in enumerate(servo):
+            if i in self.servo_mapping:
+                pos_val, neg_val = self.servo_mapping[i]
                 
                 if value > 0.5:
                     commands_to_send.append(pos_val)
@@ -117,8 +117,8 @@ class ArmNode(Node):
 
         # Send all active commands alternatingly
         for k in commands_to_send:
-            os.system(f"cansend can0 111#{k}")
-            self.get_logger().info(f'ik stuur nu: 111#{k} naar buoyancy')
+            os.system(f"cansend can0 222#{k}")
+            self.get_logger().info(f'ik stuur nu: 222#{k} naar arm')
             
             # Small delay to prevent saturating the CAN bus 
             # and to allow the receiver to process each message
